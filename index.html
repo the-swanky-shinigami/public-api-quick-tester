@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <link rel="icon" href="favicon.png" type="image/png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="An ultra-light, client-side tool to quickly test public GET API endpoints and view JSON responses without any setup.">
+    <meta name="keywords" content="api, tester, json, fetch, get, public api, developer tools, lightweight, client-side">
+    <meta name="author" content="[Your Name/Handle]">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="[YOUR_CLOUDFLARE_PAGES_URL_HERE]">
+    <meta property="og:title" content="Public API Quick Tester (Ultra-Light)">
+    <meta property="og:description" content="Instantly test public GET APIs and see JSON responses in your browser. No setup, no backend.">
+    <!-- <meta property="og:image" content="[URL_TO_A_PREVIEW_IMAGE_e.g.,_screenshot.png]"> -->
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image"> <!-- or summary -->
+    <meta property="twitter:url" content="[YOUR_CLOUDFLARE_PAGES_URL_HERE]">
+    <meta property="twitter:title" content="Public API Quick Tester (Ultra-Light)">
+    <meta property="twitter:description" content="Instantly test public GET APIs and see JSON responses in your browser. No setup, no backend.">
+<!-- <meta property="twitter:image" content="[URL_TO_A_PREVIEW_IMAGE_e.g.,_screenshot.png]"> -->
+    <title>Public API Quick Tester</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 800px;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"], input[type="url"] {
+            width: calc(100% - 22px); /* Account for padding */
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.2s ease-in-out;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        #response-container {
+            margin-top: 25px;
+            background-color: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #bdc3c7;
+            min-height: 100px; /* Ensure it's visible even when empty */
+            overflow-x: auto; /* For long lines in JSON */
+        }
+        pre {
+            white-space: pre-wrap;       /* CSS3 */
+            white-space: -moz-pre-wrap;  /* Mozilla, since 1999 */
+            white-space: -pre-wrap;      /* Opera 4-6 */
+            white-space: -o-pre-wrap;    /* Opera 7 */
+            word-wrap: break-word;       /* Internet Explorer 5.5+ */
+            margin: 0;
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            font-size: 0.9rem;
+        }
+        .status {
+            font-style: italic;
+            color: #7f8c8d;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 0.8em;
+            color: #777;
+        }
+        footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Public API Quick Tester</h1>
+        <p>Enter a public API URL (GET, no auth) to see the JSON response.</p>
+
+        <div>
+            <label for="apiUrl">API URL:</label>
+            <input type="url" id="apiUrl" placeholder="e.g., https://jsonplaceholder.typicode.com/todos/1" required>
+        </div>
+
+        <button id="goButton">Go</button>
+
+        <div id="response-container">
+            <pre id="jsonResponse"><span class="status">Response will appear here...</span></pre>
+        </div>
+    </div>
+
+    <footer>
+        Ultra-Light & Client-Side Only. No data is stored.
+        <br>
+        Note: The target API must have appropriate <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS" target="_blank" rel="noopener noreferrer">CORS</a> headers set to allow requests from this page.
+         <br>
+        View on <a href="[YOUR_GITHUB_REPO_URL]" target="_blank" rel="noopener noreferrer">GitHub</a>.
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const apiUrlInput = document.getElementById('apiUrl');
+            const goButton = document.getElementById('goButton');
+            const jsonResponseOutput = document.getElementById('jsonResponse');
+
+            const setStatus = (message, isError = false) => {
+                jsonResponseOutput.innerHTML = ''; // Clear previous content
+                const span = document.createElement('span');
+                span.textContent = message;
+                if (isError) {
+                    span.classList.add('error');
+                } else {
+                    span.classList.add('status');
+                }
+                jsonResponseOutput.appendChild(span);
+            };
+
+            const prettyPrintJson = (json) => {
+                try {
+                    const obj = JSON.parse(json); // Verify it's actually JSON
+                    return JSON.stringify(obj, null, 2);
+                } catch (e) {
+                    // If it's not JSON, but the request was successful, display raw text
+                    return json;
+                }
+            };
+
+            const fetchData = async () => {
+                const url = apiUrlInput.value.trim();
+
+                if (!url) {
+                    setStatus('Please enter an API URL.', true);
+                    return;
+                }
+
+                // Basic URL validation (optional, fetch will fail anyway but good UX)
+                try {
+                    new URL(url); // Will throw error if invalid
+                } catch (_) {
+                    setStatus('Invalid URL format.', true);
+                    return;
+                }
+
+
+                setStatus('Fetching data...');
+                goButton.disabled = true;
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json, text/plain, */*' // Be flexible
+                        }
+                    });
+
+                    const responseText = await response.text(); // Get text first to handle non-JSON
+
+                    if (!response.ok) {
+                        setStatus(`Error: ${response.status} ${response.statusText}\n\n${responseText}`, true);
+                        return;
+                    }
+
+                    jsonResponseOutput.textContent = prettyPrintJson(responseText);
+
+                } catch (error) {
+                    // This catches network errors (e.g., DNS, CORS, server down)
+                    console.error('Fetch Error:', error);
+                    let errorMessage = 'Network error or CORS issue.';
+                    if (error.message.toLowerCase().includes('failed to fetch')) {
+                        errorMessage = 'Failed to fetch. This might be a CORS issue, a network problem, or the URL is incorrect. Check browser console for more details.';
+                    } else {
+                        errorMessage = `Error: ${error.message}`;
+                    }
+                    setStatus(errorMessage, true);
+                } finally {
+                    goButton.disabled = false;
+                }
+            };
+
+            goButton.addEventListener('click', fetchData);
+            apiUrlInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    fetchData();
+                }
+            });
+
+            // Example URL for easy testing
+            // apiUrlInput.value = 'https://jsonplaceholder.typicode.com/todos/1';
+        });
+    </script>
+</body>
+</html>
